@@ -17,7 +17,7 @@ async function searchParts() {
     }
 
     // IMPORTANT: Replace this with your actual n8n Webhook URL
-    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook/0299c781-9597-4a44-8efa-73ccf75bf26a';
+    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook-test/2ba40be1-81c1-43cf-874a-e08b0f0ad97a';
 
     resultsContainer.innerHTML = '';
     loader.style.display = 'block';
