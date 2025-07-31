@@ -35,21 +35,32 @@ async function searchParts() {
             throw new Error(`Network response was not ok: ${response.statusText}`);
         }
 
-        const results = await response.json();
+        const resultData = await response.json();
 
-        // NEW: Check if the response from n8n is an array.
-        // If it's not an array, it's probably an error object from the workflow.
-        if (!Array.isArray(results)) {
-            // Throw an error to be caught by the catch block below.
-            const errorMessage = results.error || JSON.stringify(results);
-            throw new Error(`The workflow returned an error: ${errorMessage}`);
+        // --- NEW, MORE ROBUST LOGIC ---
+        let itemsArray = [];
+
+        if (Array.isArray(resultData)) {
+            // This handles the case where n8n sends the array directly.
+            itemsArray = resultData;
+        } else if (resultData && typeof resultData === 'object' && !Array.isArray(resultData)) {
+            // This handles the case where n8n wraps the array in an object, e.g., { "data": [...] }.
+            // We'll find the first property that is an array and use it.
+            const potentialArray = Object.values(resultData).find(value => Array.isArray(value));
+            if (potentialArray) {
+                itemsArray = potentialArray;
+            } else {
+                const errorMessage = resultData.error || JSON.stringify(resultData);
+                throw new Error(`Workflow returned an object without a results array: ${errorMessage}`);
+            }
+        } else {
+             throw new Error('Workflow returned an unexpected data format.');
         }
-
-        displayResults(results);
+        
+        displayResults(itemsArray);
 
     } catch (error) {
         console.error('Error:', error);
-        // This block now displays network errors AND workflow errors on the page.
         resultsContainer.innerHTML = `<p style="color: red;">An error occurred. Please check the n8n execution log for details.</p><p style="color: #666; font-size: 0.8rem;">Details: ${error.message}</p>`;
     } finally {
         loader.style.display = 'none';
@@ -59,7 +70,7 @@ async function searchParts() {
 
 function displayResults(results) {
     const container = document.getElementById('resultsContainer');
-    if (results.length === 0) {
+    if (!results || results.length === 0) {
         container.innerHTML = '<p>No results found.</p>';
         return;
     }
@@ -81,7 +92,7 @@ function displayResults(results) {
         card.innerHTML = `
             <h3><a href="${url}" target="_blank">${title}</a></h3>
             <p><strong>Price:</strong> ${price}</p>
-            <p><strong>Availability:</strong> <span style="color: ${availability.toUpperCase().includes('IN STOCK') ? 'green' : 'red'};">${availability}</span></p>
+            <p><strong>Availability:</strong> <span style="color: ${availability && availability.toUpperCase().includes('IN STOCK') ? 'green' : 'red'};">${availability}</span></p>
         `;
 
         container.appendChild(card);
