@@ -16,7 +16,7 @@ async function searchParts() {
         return;
     }
 
-    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook/2ba40be1-81c1-43cf-874a-e08b0f0ad97a'; // Make sure this is your Production URL
+    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook/2ba40be1-81c1-43cf-874a-e08b0f0ad97a';
 
     resultsContainer.innerHTML = '';
     loader.style.display = 'block';
@@ -31,34 +31,26 @@ async function searchParts() {
             body: JSON.stringify({ partNumber: partNumber })
         });
 
-        if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
-        }
-
         const resultData = await response.json();
-        
-        // --- THIS IS THE FIX ---
-        // This new logic correctly handles the data your n8n workflow is sending.
-        let itemsArray = [];
 
+        // --- THIS IS THE PROOF ---
+        // This will show you exactly what data n8n sent to your website.
+        console.log("RAW DATA RECEIVED FROM N8N:", resultData);
+        // ------------------------
+        
+        // The rest of this code tries to fix the data if it's broken
+        let itemsArray = [];
         if (Array.isArray(resultData)) {
-            // This works if n8n sends the full list correctly.
             itemsArray = resultData;
-        } else if (resultData && typeof resultData === 'object' && resultData.site) {
-            // This works if n8n sends only a single result object.
-            // We will manually put that single object into a list.
+        } else if (resultData && typeof resultData === 'object') {
             itemsArray = [resultData];
-        } else {
-            // This handles any other case, including errors.
-            const errorMessage = resultData.error || JSON.stringify(resultData);
-            throw new Error(`Workflow returned an unexpected data format or an error: ${errorMessage}`);
         }
         
         displayResults(itemsArray);
 
     } catch (error) {
         console.error('Error:', error);
-        resultsContainer.innerHTML = `<p style="color: red;">An error occurred. Please check the n8n execution log for details.</p><p style="color: #666; font-size: 0.8rem;">Details: ${error.message}</p>`;
+        resultsContainer.innerHTML = `<p style="color: red;">An error occurred.</p>`;
     } finally {
         loader.style.display = 'none';
         searchButton.disabled = false;
@@ -67,6 +59,8 @@ async function searchParts() {
 
 function displayResults(results) {
     const container = document.getElementById('resultsContainer');
+    container.innerHTML = ''; // Clear previous results
+
     if (!results || results.length === 0) {
         container.innerHTML = '<p>No results found.</p>';
         return;
@@ -75,18 +69,15 @@ function displayResults(results) {
     results.forEach(result => {
         const card = document.createElement('div');
         card.className = 'result-card';
-
         const title = result.site || 'Unknown Site';
         const price = result.price || 'Not available';
         const availability = result.availability || 'Not specified';
         const url = result.url || '#';
-
         card.innerHTML = `
             <h3><a href="${url}" target="_blank">${title}</a></h3>
             <p><strong>Price:</strong> ${price}</p>
             <p><strong>Availability:</strong> <span style="color: ${availability && availability.toUpperCase().includes('IN STOCK') ? 'green' : 'red'};">${availability}</span></p>
         `;
-
         container.appendChild(card);
     });
 }
