@@ -36,25 +36,22 @@ async function searchParts() {
         }
 
         const resultData = await response.json();
-
-        // --- NEW, MORE ROBUST LOGIC ---
+        
+        // --- THIS IS THE FIX ---
+        // This new logic correctly handles the data your n8n workflow is sending.
         let itemsArray = [];
 
         if (Array.isArray(resultData)) {
-            // This handles the case where n8n sends the array directly.
+            // This works if n8n sends the full list correctly.
             itemsArray = resultData;
-        } else if (resultData && typeof resultData === 'object' && !Array.isArray(resultData)) {
-            // This handles the case where n8n wraps the array in an object, e.g., { "data": [...] }.
-            // We'll find the first property that is an array and use it.
-            const potentialArray = Object.values(resultData).find(value => Array.isArray(value));
-            if (potentialArray) {
-                itemsArray = potentialArray;
-            } else {
-                const errorMessage = resultData.error || JSON.stringify(resultData);
-                throw new Error(`Workflow returned an object without a results array: ${errorMessage}`);
-            }
+        } else if (resultData && typeof resultData === 'object' && resultData.site) {
+            // This works if n8n sends only a single result object.
+            // We will manually put that single object into a list.
+            itemsArray = [resultData];
         } else {
-             throw new Error('Workflow returned an unexpected data format.');
+            // This handles any other case, including errors.
+            const errorMessage = resultData.error || JSON.stringify(resultData);
+            throw new Error(`Workflow returned an unexpected data format or an error: ${errorMessage}`);
         }
         
         displayResults(itemsArray);
@@ -76,11 +73,6 @@ function displayResults(results) {
     }
 
     results.forEach(result => {
-        if (result.error) {
-            console.warn("Skipping result with error:", result);
-            return;
-        }
-
         const card = document.createElement('div');
         card.className = 'result-card';
 
