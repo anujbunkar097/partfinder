@@ -16,8 +16,7 @@ async function searchParts() {
         return;
     }
 
-    // IMPORTANT: Replace this with your actual n8n Webhook URL
-    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook/2ba40be1-81c1-43cf-874a-e08b0f0ad97a';
+    const webhookUrl = 'https://transformco.app.n8n.cloud/webhook/2ba40be1-81c1-43cf-874a-e08b0f0ad97a'; // Make sure this is your Production URL
 
     resultsContainer.innerHTML = '';
     loader.style.display = 'block';
@@ -37,11 +36,21 @@ async function searchParts() {
         }
 
         const results = await response.json();
+
+        // NEW: Check if the response from n8n is an array.
+        // If it's not an array, it's probably an error object from the workflow.
+        if (!Array.isArray(results)) {
+            // Throw an error to be caught by the catch block below.
+            const errorMessage = results.error || JSON.stringify(results);
+            throw new Error(`The workflow returned an error: ${errorMessage}`);
+        }
+
         displayResults(results);
 
     } catch (error) {
         console.error('Error:', error);
-        resultsContainer.innerHTML = `<p style="color: red;">An error occurred. Please check the console and your n8n workflow.</p>`;
+        // This block now displays network errors AND workflow errors on the page.
+        resultsContainer.innerHTML = `<p style="color: red;">An error occurred. Please check the n8n execution log for details.</p><p style="color: #666; font-size: 0.8rem;">Details: ${error.message}</p>`;
     } finally {
         loader.style.display = 'none';
         searchButton.disabled = false;
@@ -56,21 +65,25 @@ function displayResults(results) {
     }
 
     results.forEach(result => {
-        if (result.price === "Not Found" && result.name === "Not Found") return;
+        if (result.error) {
+            console.warn("Skipping result with error:", result);
+            return;
+        }
 
         const card = document.createElement('div');
         card.className = 'result-card';
 
-        const title = result.name === "Not Found" ? `Result from ${result.site}` : result.name;
-        const price = result.price === "Not Found" ? "Price not available" : result.price;
-        const availability = result.availability;
+        const title = result.site || 'Unknown Site';
+        const price = result.price || 'Not available';
+        const availability = result.availability || 'Not specified';
+        const url = result.url || '#';
 
         card.innerHTML = `
-            <h3><a href="${result.url}" target="_blank">${title}</a></h3>
-            <p><strong>Website:</strong> ${result.site}</p>
+            <h3><a href="${url}" target="_blank">${title}</a></h3>
             <p><strong>Price:</strong> ${price}</p>
-            <p><strong>Availability:</strong> <span style="color: ${availability === 'In Stock' ? 'green' : 'red'};">${availability}</span></p>
+            <p><strong>Availability:</strong> <span style="color: ${availability.toUpperCase().includes('IN STOCK') ? 'green' : 'red'};">${availability}</span></p>
         `;
+
         container.appendChild(card);
     });
 }
